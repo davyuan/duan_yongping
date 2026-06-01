@@ -1,7 +1,7 @@
 ## Value Investing Duan Yongping style
 Duan Yongping is a lengadery enterpreurer and investor who is rumored to be the richest Chinese alive. In his earlier career he started companies such as BBK, Oppo, and vivo and grew them to billion dollars each. He retired in his 40s, and spent his time mostly on golfing and parenting his children. 
 
-In his leisure time he discovered the hobby of investing. Through a series of successful investment such as in NetEase, Apple, Maotai and etc, he grew his wealth even more. 
+In his leisure time he discovered the hobby of investing. Through a series of successful investment such as in NetEase, Apple, Maotai and etc, he grew his wealth to an eastimated 15B dollars. 
 
 ### Methodology
 Thanks to Duan's interaction with the generic public, we have a rich collection of his comments and remarks on Value Investing and his own investing philosophy. These public Q&A can be found [here.](https://baike.baidu.com/item/%E6%AE%B5%E6%B0%B8%E5%B9%B3%E6%8A%95%E8%B5%84%E9%97%AE%E7%AD%94%E5%BD%95%EF%BC%88%E6%8A%95%E8%B5%84%E9%80%BB%E8%BE%91%E7%AF%87%EF%BC%89/57572157) 
