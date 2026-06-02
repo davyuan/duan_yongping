@@ -62,76 +62,85 @@ def rerank_results(entries):
         reverse=True,
     )
 
-def generate_rag_sys_prompt(reranked_results):
+def format_retrieved_context(reranked_results):
     context_blocks = []
-    
+
     for res in reranked_results:
         metadata = res["metadata"]
         content = res["document"]
         source = metadata.get("page", "Unknown")
         header = metadata.get("chapter", metadata.get("sector", "General Info"))
-        
+
         # Format text blocks
         block = f"--- TEXT FROM Page {source} ({header}) ---\n{content}\n"
-        
+
         context_blocks.append(block)
-    
+
     # Combine all blocks into a single context string
-    context_str = "\n".join(context_blocks)
-    
-    # The System Prompt: Instructions for the LLM
-    prompt = f"""
+    return "\n".join(context_blocks)
+
+
+def generate_base_system_prompt():
+    return """
 You are an investing guru. You answer questions about investing strategies and financial decisions. 
 ### Guidelines:
 1. **You are a value investor, not a trader:** You focus on long-term investments based on fundamental analysis, not short-term market movements.
 2. **Stay Grounded:** Only answer based on the provided data. If the answer isn't there, say you don't know.
 3. **Formatting:** Always use first person perspective, with provided data as internalized knowledge. Use the same tone and style as in the provided answers. If the answer is formal, be formal. If the answer is casual, be casual.
---------------------
-The data:
-
-{context_str}
-
 """
-    return prompt
+
+
+def build_augmented_user_message(user_query, context_str):
+    return (
+        f"用户问题:\n{user_query}\n\n"
+        "以下是检索到的参考资料，请优先依据这些资料回答；如果资料不足，请明确说明不知道:\n"
+        f"{context_str}"
+    )
 
 
 args = parse_args()
 chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
 collection = get_collection(chroma_client, args)
-
-#user_query = "什么时候是最佳的卖出时机？"
-#user_query = "什么是价值投资？"
-#user_query = "想学习价值投资，段总推荐看什么书？"
-#user_query = "特斯拉是个好的价值投资标的吗？"
-#user_query = "您当年为什么投资网易？"
-#user_query = "在网易已经翻了20倍的时候，您为啥能做到坚持持有？"
-#user_query = "茅台的目标消费人群在萎缩，白酒在中国的销量每年都在下降，茅台还是个好生意吗？"
-#user_query = "为什么白酒下滑但茅台未必下滑？"
-#user_query = "您看财务报表吗？怎么从财务报表里看出一个好生意，或者坏生意？"
-#user_query = "如果财务报表只能用来剔除坏生意，怎么在几千家上市公司里找到好生意呢？"
-user_query = input("请输入您的问题: ")#"不是每个投资者都有资源去实地调查，或者跟管理层交流，怎么通过公开信息判读一个企业的文化，或者护城河呢？"
-
-text_results = collection.query(
-    query_texts=[user_query],
-    n_results=5,
-)
-
-entries = normalize_results(text_results)
-reranked_results = rerank_results(entries)
-
 client = OpenAI()
 
-system_prompt = generate_rag_sys_prompt(reranked_results)
-#print(system_prompt)
+chat_history = []
+system_prompt = generate_base_system_prompt()
 
-response = client.chat.completions.create(
-    model="gpt-5.4-mini",
-    messages = [
-        {"role":"system","content":system_prompt},
-        {"role":"user","content":user_query}    
-    ]
-)
+print("输入问题开始对话，按 Ctrl+C 结束。")
 
-print("\n\n---------------------\n\n")
+try:
+    while True:
+        user_query = input("\n请输入您的问题: ").strip()
+        if not user_query:
+            print("请输入非空问题。")
+            continue
 
-print(response.choices[0].message.content)
+        text_results = collection.query(
+            query_texts=[user_query],
+            n_results=5,
+        )
+
+        entries = normalize_results(text_results)
+        reranked_results = rerank_results(entries)
+        context_str = format_retrieved_context(reranked_results)
+        current_user_message = build_augmented_user_message(user_query, context_str)
+
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(chat_history)
+        messages.append({"role": "user", "content": current_user_message})
+
+        response = client.chat.completions.create(
+            model="gpt-5.4-mini",
+            messages=messages,
+        )
+
+        assistant_content = response.choices[0].message.content
+
+        # Save only clean dialogue history (without retrieval context) for future turns.
+        chat_history.append({"role": "user", "content": user_query})
+        chat_history.append({"role": "assistant", "content": assistant_content})
+
+        print("\n\n---------------------\n\n")
+        print(assistant_content)
+except KeyboardInterrupt:
+    print("\n\n会话结束。")
